@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-xml="http://www.springframework.org/schema/integration/xml"
+	xmlns:oxm="http://www.springframework.org/schema/oxm" xmlns:int-http="http://www.springframework.org/schema/integration/http"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:int-jmx="http://www.springframework.org/schema/integration/jmx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+		http://www.springframework.org/schema/integration/xml http://www.springframework.org/schema/integration/xml/spring-integration-xml.xsd
+		http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+		http://www.springframework.org/schema/oxm http://www.springframework.org/schema/oxm/spring-oxm-3.0.xsd 
+		http://www.springframework.org/schema/integration/jmx http://www.springframework.org/schema/integration/jmx/spring-integration-jmx-2.1.xsd 
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+
+    <context:annotation-config/>
+    <context:component-scan base-package="test.springintegration"/>
+	<int:channel id="triggerChannel" />
+	<int:channel id="httpResponseChannel"> <int:queue /></int:channel>
+	<int:channel id="persistContentChannel"><int:queue /></int:channel>
+
+	<bean id="httpResponsePersisterService"  class="test.springintegration.HttpResponsePersisterService" />
+	<bean id="httpResponseTransformer" class="test.springintegration.SimpleTransformer" />
+
+	<int:inbound-channel-adapter channel="triggerChannel" method="initiateRequest">
+		<int:poller max-messages-per-poll="1" fixed-rate="10000" />
+		<bean class="test.springintegration.InboundAdapter" />
+	</int:inbound-channel-adapter>
+
+	<int-http:outbound-gateway request-channel="triggerChannel"
+		url="http://economictimes.indiatimes.com/" http-method="GET" expected-response-type="java.lang.String"
+		reply-channel="httpResponseChannel">
+	</int-http:outbound-gateway>
+	<int:transformer ref="httpResponseTransformer"
+		input-channel="httpResponseChannel" method="transformMessage"
+		output-channel="persistContentChannel">
+		<int:poller max-messages-per-poll="1" fixed-rate="1000"></int:poller>
+	</int:transformer>
+
+	<int:service-activator ref="httpResponsePersisterService"
+		method="persistResponse" input-channel="persistContentChannel" >
+		<int:poller fixed-rate="1" task-executor="httpResponsePersisterTaskExecutor">
+		</int:poller>
+	</int:service-activator>
+	<bean id="httpResponsePersisterTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+		<property name="corePoolSize" value="10"/>
+		<property name="maxPoolSize" value="15"/>
+		<property name="waitForTasksToCompleteOnShutdown" value="true"/>
+		<property name="daemon" value="false"/>
+		<property name="threadNamePrefix" value="httpResponsePersisterService-"/>
+	</bean>	
+	<context:mbean-server />
+	<int-jmx:mbean-export id="integrationMbeanExporter" />
+	
+
+
+
+</beans>
