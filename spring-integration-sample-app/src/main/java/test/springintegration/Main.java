@@ -8,11 +8,12 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  * Date: 30.11.11
  * Time: 17:20
  */
-public class Main {
+public class Main         //class named main
+{
     public static void main(String[] args)
     {
 
         ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(
-				"classpath:/META-INF/application-context-root.xml");
+				"classpath:/META-INF/application-context-root.xml");      //creating object
      }
 }
